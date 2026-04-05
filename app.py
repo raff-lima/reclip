@@ -24,6 +24,20 @@ _ch.setFormatter(_fmt)
 logger.addHandler(_fh)
 logger.addHandler(_ch)
 
+# Check Node.js availability at startup (needed for yt-dlp JS challenge solving)
+try:
+    _node = subprocess.run(["node", "--version"], capture_output=True, text=True, timeout=5)
+    logger.info("Node.js found: %s", _node.stdout.strip())
+except FileNotFoundError:
+    logger.warning("Node.js NOT found — yt-dlp signature solving will fail")
+
+# Check yt-dlp version
+try:
+    _ytdlp = subprocess.run(["yt-dlp", "--version"], capture_output=True, text=True, timeout=5)
+    logger.info("yt-dlp version: %s", _ytdlp.stdout.strip())
+except FileNotFoundError:
+    logger.error("yt-dlp NOT found")
+
 jobs = {}
 
 
@@ -35,8 +49,8 @@ def base_ytdlp_cmd():
     ]
     if os.path.isfile(COOKIES_FILE):
         cmd += ["--cookies", COOKIES_FILE]
-        cmd += ["--extractor-args", "youtube:player_client=web_creator,mweb"]
-        logger.debug("Using cookies file with web_creator,mweb client")
+        cmd += ["--extractor-args", "youtube:player_client=web"]
+        logger.debug("Using cookies file with web client")
     else:
         cmd += ["--extractor-args", "youtube:player_client=ios"]
         logger.debug("No cookies, using ios client")
