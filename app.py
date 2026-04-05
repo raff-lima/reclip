@@ -164,42 +164,20 @@ def get_info():
 
         info = json.loads(result.stdout)
 
-        # Build quality options — keep best format per resolution
-        best_by_height = {}
-        for f in info.get("formats", []):
-            height = f.get("height")
-            if height and f.get("vcodec", "none") != "none":
-                tbr = f.get("tbr") or 0
-                if height not in best_by_height or tbr > (best_by_height[height].get("tbr") or 0):
-                    best_by_height[height] = f
+        # Hardcoded quality options — yt-dlp format selector handles fallback
+        # (e.g. if 1080p unavailable, picks best available up to that limit)
+        formats = [
+            {"id": "1080", "label": "1080p", "height": 1080},
+            {"id": "720",  "label": "720p",  "height": 720},
+            {"id": "480",  "label": "480p",  "height": 480},
+            {"id": "360",  "label": "360p",  "height": 360},
+        ]
 
-        formats = []
-        for height, f in best_by_height.items():
-            formats.append({
-                "id": str(height),
-                "label": f"{height}p",
-                "height": height,
-            })
-        formats.sort(key=lambda x: x["height"], reverse=True)
-
-        # Build audio bitrate options — use abr or tbr as fallback
-        audio_formats = []
-        seen_abr = set()
-        for f in info.get("formats", []):
-            vcodec = f.get("vcodec", "none")
-            acodec = f.get("acodec", "none")
-            bitrate = f.get("abr") or f.get("tbr")
-            # audio-only streams: no video codec, has audio codec, has bitrate
-            if bitrate and acodec != "none" and vcodec == "none":
-                br = round(bitrate)
-                if br and br not in seen_abr:
-                    seen_abr.add(br)
-                    audio_formats.append({
-                        "id": str(br),
-                        "label": f"{br}kbps",
-                        "abr": br,
-                    })
-        audio_formats.sort(key=lambda x: x["abr"], reverse=True)
+        audio_formats = [
+            {"id": "320", "label": "320kbps", "abr": 320},
+            {"id": "192", "label": "192kbps", "abr": 192},
+            {"id": "128", "label": "128kbps", "abr": 128},
+        ]
 
         return jsonify({
             "title": info.get("title", ""),
