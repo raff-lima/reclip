@@ -65,7 +65,12 @@ def run_download(job_id, url, format_choice, format_id):
     cmd = base_ytdlp_cmd() + ["-o", out_template]
 
     if format_choice == "audio":
-        cmd += ["-x", "--audio-format", "mp3"]
+        if format_id:
+            # format_id is a bitrate string e.g. "128"
+            fmt = f"ba[abr<={format_id}]/ba/b"
+            cmd += ["-f", fmt, "-x", "--audio-format", "mp3"]
+        else:
+            cmd += ["-x", "--audio-format", "mp3"]
     elif format_id:
         # format_id is a height string e.g. "720".
         # bv* matches both muxed and adaptive video streams (more permissive than bestvideo).
@@ -172,12 +177,28 @@ def get_info():
             })
         formats.sort(key=lambda x: x["height"], reverse=True)
 
+        # Build audio bitrate options
+        audio_formats = []
+        seen_abr = set()
+        for f in info.get("formats", []):
+            abr = f.get("abr")
+            acodec = f.get("acodec", "none")
+            if abr and acodec != "none" and abr not in seen_abr:
+                seen_abr.add(abr)
+                audio_formats.append({
+                    "id": str(int(abr)),
+                    "label": f"{int(abr)}kbps",
+                    "abr": abr,
+                })
+        audio_formats.sort(key=lambda x: x["abr"], reverse=True)
+
         return jsonify({
             "title": info.get("title", ""),
             "thumbnail": info.get("thumbnail", ""),
             "duration": info.get("duration"),
             "uploader": info.get("uploader", ""),
             "formats": formats,
+            "audio_formats": audio_formats,
         })
     except subprocess.TimeoutExpired:
         logger.error("[info] url=%s TIMEOUT", url)

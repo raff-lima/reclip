@@ -618,7 +618,9 @@
                 duration: data.duration,
                 uploader: data.uploader || "",
                 formats: data.formats || [],
-                selectedFormatId: data.formats?.[0]?.id || null, // now a height string e.g. "1080"
+                audioFormats: data.audio_formats || [],
+                selectedFormatId: data.formats?.[0]?.id || null,
+                selectedAudioId: data.audio_formats?.[0]?.id || null,
               };
             }
           } catch (err) {
@@ -702,6 +704,14 @@
             )
             .join("");
         }
+        if (isAudio && c.audioFormats && c.audioFormats.length > 1) {
+          qualityChips = c.audioFormats
+            .map(
+              (f) =>
+                `<button class="q-chip${f.id === c.selectedAudioId ? " active" : ""}" onclick="pickAudio(${idx}, '${f.id}')">${f.label}</button>`,
+            )
+            .join("");
+        }
 
         let actionHtml = "";
         if (c.status === "ready") {
@@ -742,6 +752,11 @@
         renderCard(idx);
       }
 
+      function pickAudio(idx, audioId) {
+        cardData[idx].selectedAudioId = audioId;
+        renderCard(idx);
+      }
+
       async function dlCard(idx) {
         const c = cardData[idx];
         c.status = "downloading";
@@ -755,7 +770,10 @@
             body: JSON.stringify({
               url: c.url,
               format: currentFormat,
-              format_id: c.selectedFormatId, // height string e.g. "720"
+              format_id:
+                currentFormat === "audio"
+                  ? c.selectedAudioId
+                  : c.selectedFormatId,
               title: c.title || "",
             }),
           });
