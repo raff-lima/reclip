@@ -31,12 +31,17 @@ def base_ytdlp_cmd():
     cmd = [
         "yt-dlp",
         "--no-playlist",
-        "--extractor-args", "youtube:player_client=ios",
         "--no-check-certificates",
     ]
     if os.path.isfile(COOKIES_FILE):
+        # ios client does NOT support cookies — use web_creator which works with cookies
         cmd += ["--cookies", COOKIES_FILE]
-        logger.debug("Using cookies file")
+        cmd += ["--extractor-args", "youtube:player_client=web_creator"]
+        logger.debug("Using cookies file with web_creator client")
+    else:
+        # No cookies — ios client bypasses bot detection without cookies
+        cmd += ["--extractor-args", "youtube:player_client=ios"]
+        logger.debug("No cookies, using ios client")
     return cmd
 
 
