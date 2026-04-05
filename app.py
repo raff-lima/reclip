@@ -66,10 +66,9 @@ def run_download(job_id, url, format_choice, format_id):
     cmd = base_ytdlp_cmd() + ["-o", out_template]
 
     if format_choice == "audio":
-        if format_id:
-            cmd += ["-f", f"ba[abr<={format_id}]/ba", "-x", "--audio-format", "mp3"]
-        else:
-            cmd += ["-x", "--audio-format", "mp3"]
+        bitrate = format_id or "320"
+        # Baixa melhor áudio disponível e re-encoda para o bitrate MP3 escolhido
+        cmd += ["-x", "--audio-format", "mp3", "--audio-quality", f"{bitrate}k"]
     else:
         if format_id:
             fmt = f"bv*[height<={format_id}]+ba[ext=m4a]/bv*[height<={format_id}]+ba/b[height<={format_id}]"
@@ -170,17 +169,13 @@ def get_info():
             key=lambda x: x["height"], reverse=True
         )
 
-        # Formatos de áudio — streams somente-áudio, usando tbr como fallback de abr
-        seen_abr = set()
-        audio_formats = []
-        for f in info.get("formats", []):
-            if f.get("vcodec", "none") != "none" or f.get("acodec", "none") == "none":
-                continue
-            br = round(f.get("abr") or f.get("tbr") or 0)
-            if br and br not in seen_abr:
-                seen_abr.add(br)
-                audio_formats.append({"id": str(br), "label": f"{br}kbps", "abr": br})
-        audio_formats.sort(key=lambda x: x["abr"], reverse=True)
+        # Áudio: bitrates fixos de saída — ffmpeg re-encoda na qualidade escolhida
+        audio_formats = [
+            {"id": "320", "label": "320kbps", "abr": 320},
+            {"id": "256", "label": "256kbps", "abr": 256},
+            {"id": "192", "label": "192kbps", "abr": 192},
+            {"id": "128", "label": "128kbps", "abr": 128},
+        ]
 
         return jsonify({
             "title": info.get("title", ""),
