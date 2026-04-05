@@ -41,20 +41,24 @@ except FileNotFoundError:
 jobs = {}
 
 
-def base_ytdlp_cmd():
+def base_ytdlp_cmd(for_info=False):
     cmd = [
         "yt-dlp",
         "--no-playlist",
         "--no-check-certificates",
         "--js-runtimes", "node",
     ]
-    if os.path.isfile(COOKIES_FILE):
+    if not for_info and os.path.isfile(COOKIES_FILE):
+        # Download: web client with cookies + JS solving works for playback
         cmd += ["--cookies", COOKIES_FILE]
         cmd += ["--extractor-args", "youtube:player_client=web"]
-        logger.debug("Using cookies file with web client")
+        logger.debug("[download] Using cookies + web client")
     else:
+        # Info: ios client returns full adaptive format list (no SABR restriction)
         cmd += ["--extractor-args", "youtube:player_client=ios"]
-        logger.debug("No cookies, using ios client")
+        if os.path.isfile(COOKIES_FILE) and not for_info:
+            cmd += ["--cookies", COOKIES_FILE]
+        logger.debug("[info] Using ios client")
     return cmd
 
 
@@ -146,7 +150,7 @@ def get_info():
     if not url:
         return jsonify({"error": "No URL provided"}), 400
 
-    cmd = base_ytdlp_cmd() + ["-j", url]
+    cmd = base_ytdlp_cmd(for_info=True) + ["-j", url]
     logger.info("[info] url=%s cmd=%s", url, " ".join(cmd))
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
@@ -177,19 +181,23 @@ def get_info():
             })
         formats.sort(key=lambda x: x["height"], reverse=True)
 
-        # Build audio bitrate options
+        # Build audio bitrate options — use abr or tbr as fallback
         audio_formats = []
         seen_abr = set()
         for f in info.get("formats", []):
-            abr = f.get("abr")
+            vcodec = f.get("vcodec", "none")
             acodec = f.get("acodec", "none")
-            if abr and acodec != "none" and abr not in seen_abr:
-                seen_abr.add(abr)
-                audio_formats.append({
-                    "id": str(int(abr)),
-                    "label": f"{int(abr)}kbps",
-                    "abr": abr,
-                })
+            bitrate = f.get("abr") or f.get("tbr")
+            # audio-only streams: no video codec, has audio codec, has bitrate
+            if bitrate and acodec != "none" and vcodec == "none":
+                br = round(bitrate)
+                if br and br not in seen_abr:
+                    seen_abr.add(br)
+                    audio_formats.append({
+                        "id": str(br),
+                        "label": f"{br}kbps",
+                        "abr": br,
+                    })
         audio_formats.sort(key=lambda x: x["abr"], reverse=True)
 
         return jsonify({
