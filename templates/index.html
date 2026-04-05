@@ -291,9 +291,22 @@
 
       .card-actions {
         display: flex;
-        gap: 6px;
+        flex-direction: column;
+        gap: 8px;
+        align-items: flex-start;
+      }
+
+      .card-chips {
+        display: flex;
+        gap: 5px;
         align-items: center;
-        flex-wrap: wrap;
+        overflow-x: auto;
+        max-width: 100%;
+        padding-bottom: 2px;
+        scrollbar-width: none;
+      }
+      .card-chips::-webkit-scrollbar {
+        display: none;
       }
 
       .card-dl-btn {
@@ -719,7 +732,8 @@
 
         let actionHtml = "";
         if (c.status === "ready") {
-          actionHtml = `<button class="card-dl-btn" onclick="dlCard(${idx})">Download</button>${qualityChips}`;
+          const chipsHtml = qualityChips ? `<div class="card-chips">${qualityChips}</div>` : "";
+          actionHtml = `<button class="card-dl-btn" onclick="dlCard(${idx})">Download</button>${chipsHtml}`;
         } else if (c.status === "downloading") {
           actionHtml = `<span class="card-status downloading"><span class="spin"></span> Downloading...</span>`;
         } else if (c.status === "done") {
