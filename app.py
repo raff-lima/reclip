@@ -1,4 +1,5 @@
 import os
+import re
 import uuid
 import glob
 import json
@@ -61,6 +62,7 @@ def base_ytdlp_cmd(for_info=False):
 
 def run_download(job_id, url, format_choice, format_id):
     job = jobs[job_id]
+    job["progress"] = 0
     out_template = os.path.join(DOWNLOAD_DIR, f"{job_id}.%(ext)s")
 
     cmd = base_ytdlp_cmd() + ["-o", out_template]
@@ -80,14 +82,45 @@ def run_download(job_id, url, format_choice, format_id):
     logger.info("[download] job=%s url=%s cmd=%s", job_id, url, " ".join(cmd))
 
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
-        if result.returncode != 0:
+        proc = subprocess.Popen(
+            cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+            text=True, bufsize=1
+        )
+
+        # Rastreia progresso por fases (vídeo + áudio = 2 fases; only-audio = 1)
+        phases_seen = 0
+        last_pct = 0.0
+        stderr_lines = []
+
+        for line in proc.stderr:
+            line_s = line.rstrip()
+            if line_s:
+                stderr_lines.append(line_s)
+            # Detecta nova fase (início de download)
+            if "[download] Destination:" in line_s:
+                phases_seen += 1
+                last_pct = 0.0
+            # Parseia percentual: "[download]  45.3% of ..."
+            if "[download]" in line_s and "%" in line_s:
+                m = re.search(r'(\d+\.?\d*)%', line_s)
+                if m:
+                    last_pct = float(m.group(1))
+                    # 2 fases: vídeo=0-50%, áudio=50-100%
+                    # 1 fase:  áudio=0-100%
+                    if format_choice == "audio":
+                        job["progress"] = min(int(last_pct), 99)
+                    else:
+                        base = 50 * (phases_seen - 1)
+                        job["progress"] = min(int(base + last_pct / 2), 99)
+
+        proc.wait(timeout=300)
+        stderr_out = "\n".join(stderr_lines)
+
+        if proc.returncode != 0:
             job["status"] = "error"
-            stderr = result.stderr.strip()
-            logger.error("[download] job=%s FAILED stderr:\n%s", job_id, stderr)
-            # Return the last meaningful ERROR line
-            error_lines = [l for l in stderr.splitlines() if "ERROR" in l]
-            job["error"] = error_lines[-1] if error_lines else (stderr.splitlines()[-1] if stderr else "Unknown error")
+            logger.error("[download] job=%s FAILED stderr:\n%s", job_id, stderr_out)
+            error_lines = [l for l in stderr_lines if "ERROR" in l]
+            job["error"] = error_lines[-1] if error_lines else (stderr_lines[-1] if stderr_lines else "Unknown error")
             return
 
         files = glob.glob(os.path.join(DOWNLOAD_DIR, f"{job_id}.*"))
@@ -221,6 +254,7 @@ def check_status(job_id):
         return jsonify({"error": "Job not found"}), 404
     return jsonify({
         "status": job["status"],
+        "progress": job.get("progress", 0),
         "error": job.get("error"),
         "filename": job.get("filename"),
     })

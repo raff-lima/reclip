@@ -232,7 +232,7 @@
         width: 22px;
         height: 22px;
         color: #fff;
-        filter: drop-shadow(0 1px 3px rgba(0,0,0,0.5));
+        filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.5));
       }
       /* No-thumbnail icon */
       .card-thumb .no-thumb {
@@ -366,6 +366,31 @@
       }
       .card-status.error {
         color: var(--error);
+      }
+
+      .progress-wrap {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        width: 100%;
+      }
+      .progress-bar {
+        width: 100%;
+        height: 4px;
+        background: var(--card-border);
+        border-radius: 99px;
+        overflow: hidden;
+      }
+      .progress-fill {
+        height: 100%;
+        background: var(--accent);
+        border-radius: 99px;
+        transition: width 0.3s ease;
+      }
+      .progress-label {
+        font-size: 0.65rem;
+        color: var(--accent);
+        letter-spacing: 0.03em;
       }
 
       .q-chip {
@@ -591,8 +616,10 @@
         if (err.includes("HTTP Error 404")) return t.errNotFound;
         if (err.includes("copyright")) return t.errCopyright;
         if (err.includes("geo")) return t.errGeo;
-        if (err.includes("timed out") || err.includes("Timed out")) return t.errTimeout;
-        if (err.includes("network") || err.includes("Network")) return t.errNetwork;
+        if (err.includes("timed out") || err.includes("Timed out"))
+          return t.errTimeout;
+        if (err.includes("network") || err.includes("Network"))
+          return t.errNetwork;
         return err.length > 80 ? err.slice(0, 80) + "..." : err;
       }
 
@@ -831,10 +858,14 @@
             : "";
           actionHtml = `<button class="card-dl-btn" onclick="dlCard(${idx})">${t.download}</button>${chipsHtml}`;
         } else if (c.status === "downloading") {
-          actionHtml = `<span class="card-status downloading"><span class="spin"></span> ${t.downloading}</span>`;
+          const pct = c.progress || 0;
+          const label = pct > 0 ? `${pct}%` : t.downloading;
+          actionHtml = `<div class="progress-wrap">
+            <span class="progress-label">${label}</span>
+            <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+          </div>`;
         } else if (c.status === "done") {
-          actionHtml = `<button class="card-dl-btn done" onclick="saveCard(${idx})">${t.save}</button>
-          <span class="card-status done">${esc(c.filename || "")}</span>`;
+          actionHtml = `<span class="card-status done">✓ ${esc(c.filename || "")}</span>`;
         } else if (c.status === "error") {
           actionHtml = `<button class="card-dl-btn" onclick="dlCard(${idx})">${t.retry}</button>
           <span class="card-status error">${esc(friendlyError(c.error || t.downloading))}</span>`;
@@ -916,13 +947,18 @@
             if (data.status === "done") {
               clearInterval(iv);
               c.status = "done";
+              c.progress = 100;
               c.filename = data.filename;
               renderCard(idx);
-              saveCard(idx);
+              saveCard(idx); // auto-download direto para a pasta de downloads
             } else if (data.status === "error") {
               clearInterval(iv);
               c.status = "error";
               c.error = data.error;
+              renderCard(idx);
+            } else {
+              // Atualiza barra de progresso
+              c.progress = data.progress || 0;
               renderCard(idx);
             }
           } catch {
@@ -931,7 +967,7 @@
             c.error = t.errConnection;
             renderCard(idx);
           }
-        }, 1000);
+        }, 500);
       }
 
       function saveCard(idx) {
