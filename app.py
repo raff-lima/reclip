@@ -4,12 +4,25 @@ import glob
 import json
 import subprocess
 import threading
+import logging
 from flask import Flask, request, jsonify, send_file, render_template
 
 app = Flask(__name__)
 DOWNLOAD_DIR = os.path.join(os.path.dirname(__file__), "downloads")
 COOKIES_FILE = os.path.join(os.path.dirname(__file__), "cookies.txt")
+LOG_FILE = os.path.join(os.path.dirname(__file__), "reclip.log")
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
+
+# Logging setup — file + console
+logger = logging.getLogger("reclip")
+logger.setLevel(logging.DEBUG)
+_fmt = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
+_fh = logging.FileHandler(LOG_FILE, encoding="utf-8")
+_fh.setFormatter(_fmt)
+_ch = logging.StreamHandler()
+_ch.setFormatter(_fmt)
+logger.addHandler(_fh)
+logger.addHandler(_ch)
 
 jobs = {}
 
@@ -23,6 +36,7 @@ def base_ytdlp_cmd():
     ]
     if os.path.isfile(COOKIES_FILE):
         cmd += ["--cookies", COOKIES_FILE]
+        logger.debug("Using cookies file")
     return cmd
 
 
@@ -43,12 +57,14 @@ def run_download(job_id, url, format_choice, format_id):
         cmd += ["-f", "bv*+ba/b", "--merge-output-format", "mp4"]
 
     cmd.append(url)
+    logger.info("[download] job=%s url=%s cmd=%s", job_id, url, " ".join(cmd))
 
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
         if result.returncode != 0:
             job["status"] = "error"
             stderr = result.stderr.strip()
+            logger.error("[download] job=%s FAILED stderr:\n%s", job_id, stderr)
             # Return the last meaningful ERROR line
             error_lines = [l for l in stderr.splitlines() if "ERROR" in l]
             job["error"] = error_lines[-1] if error_lines else (stderr.splitlines()[-1] if stderr else "Unknown error")
@@ -76,6 +92,7 @@ def run_download(job_id, url, format_choice, format_id):
 
         job["status"] = "done"
         job["file"] = chosen
+        logger.info("[download] job=%s DONE file=%s", job_id, chosen)
         ext = os.path.splitext(chosen)[1]
         title = job.get("title", "").strip()
         # Sanitize title for filename
@@ -87,9 +104,11 @@ def run_download(job_id, url, format_choice, format_id):
     except subprocess.TimeoutExpired:
         job["status"] = "error"
         job["error"] = "Download timed out (5 min limit)"
+        logger.error("[download] job=%s TIMEOUT", job_id)
     except Exception as e:
         job["status"] = "error"
         job["error"] = str(e)
+        logger.exception("[download] job=%s EXCEPTION", job_id)
 
 
 @app.route("/")
@@ -104,11 +123,13 @@ def get_info():
     if not url:
         return jsonify({"error": "No URL provided"}), 400
 
-    cmd = base_ytdlp_cmd() + ["-j", url]
+    cmd = base_ytdlp_cmd() + ["-f", "b", "-j", url]
+    logger.info("[info] url=%s cmd=%s", url, " ".join(cmd))
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
         if result.returncode != 0:
             stderr = result.stderr.strip()
+            logger.error("[info] url=%s FAILED stderr:\n%s", url, stderr)
             error_lines = [l for l in stderr.splitlines() if "ERROR" in l]
             error_msg = error_lines[-1] if error_lines else (stderr.splitlines()[-1] if stderr else "Unknown error")
             return jsonify({"error": error_msg}), 400
@@ -141,8 +162,10 @@ def get_info():
             "formats": formats,
         })
     except subprocess.TimeoutExpired:
+        logger.error("[info] url=%s TIMEOUT", url)
         return jsonify({"error": "Timed out fetching video info"}), 400
     except Exception as e:
+        logger.exception("[info] url=%s EXCEPTION", url)
         return jsonify({"error": str(e)}), 400
 
 
@@ -185,6 +208,17 @@ def download_file(job_id):
     if not job or job["status"] != "done":
         return jsonify({"error": "File not ready"}), 404
     return send_file(job["file"], as_attachment=True, download_name=job["filename"])
+
+
+@app.route("/api/logs")
+def view_logs():
+    """Return the last 200 lines of the log file."""
+    if not os.path.isfile(LOG_FILE):
+        return "No logs yet.\n", 200, {"Content-Type": "text/plain; charset=utf-8"}
+    with open(LOG_FILE, "r", encoding="utf-8") as f:
+        lines = f.readlines()
+    tail = lines[-200:]
+    return "".join(tail), 200, {"Content-Type": "text/plain; charset=utf-8"}
 
 
 if __name__ == "__main__":
