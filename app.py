@@ -65,7 +65,7 @@ def run_download(job_id, url, format_choice, format_id):
     job["progress"] = 0
     out_template = os.path.join(DOWNLOAD_DIR, f"{job_id}.%(ext)s")
 
-    cmd = base_ytdlp_cmd() + ["-o", out_template]
+    cmd = base_ytdlp_cmd() + ["-o", out_template, "--newline"]
 
     if format_choice == "audio":
         bitrate = format_id or "320"
