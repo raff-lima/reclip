@@ -858,7 +858,7 @@
             : "";
           actionHtml = `<button class="card-dl-btn" onclick="dlCard(${idx})">${t.download}</button>${chipsHtml}`;
         } else if (c.status === "downloading") {
-          const pct = c.progress || 0;
+          const pct = Math.round(c.displayProgress || 3);
           const label = pct > 0 ? `${pct}%` : t.downloading;
           actionHtml = `<div class="progress-wrap">
             <span class="progress-label">${label}</span>
@@ -905,6 +905,8 @@
       async function dlCard(idx) {
         const c = cardData[idx];
         c.status = "downloading";
+        c.progress = 0;
+        c.displayProgress = 3;
         c.error = null;
         renderCard(idx);
 
@@ -940,29 +942,62 @@
 
       function pollCard(idx) {
         const c = cardData[idx];
+
+        // Loop de animação: suaviza displayProgress em direção ao progresso real
+        // Rápido quando longe, lento quando próximo ao target — nunca passa de 92% até concluir
+        const anim = setInterval(() => {
+          if (c.status !== "downloading") {
+            clearInterval(anim);
+            return;
+          }
+          const target = Math.min(c.progress || 0, 92);
+          const disp = c.displayProgress || 0;
+          if (disp < target) {
+            const gap = target - disp;
+            c.displayProgress = disp + Math.max(0.4, gap * 0.1);
+          } else if (c.progress === 0 && disp < 12) {
+            // Nenhum dado ainda: avança devagar para parecer ativo
+            c.displayProgress = disp + 0.15;
+          }
+          const el = document.getElementById(`card-${idx}`);
+          if (!el) {
+            clearInterval(anim);
+            return;
+          }
+          const fill = el.querySelector(".progress-fill");
+          const label = el.querySelector(".progress-label");
+          const shown = Math.round(c.displayProgress);
+          if (fill) fill.style.width = `${c.displayProgress}%`;
+          if (label)
+            label.textContent = shown > 0 ? `${shown}%` : t.downloading;
+        }, 80);
+
         const iv = setInterval(async () => {
           try {
             const res = await fetch(`/api/status/${c.jobId}`);
             const data = await res.json();
             if (data.status === "done") {
               clearInterval(iv);
+              clearInterval(anim);
               c.status = "done";
               c.progress = 100;
+              c.displayProgress = 100;
               c.filename = data.filename;
               renderCard(idx);
               saveCard(idx); // auto-download direto para a pasta de downloads
             } else if (data.status === "error") {
               clearInterval(iv);
+              clearInterval(anim);
               c.status = "error";
               c.error = data.error;
               renderCard(idx);
             } else {
-              // Atualiza barra de progresso
+              // Só atualiza o target — a animação cuida do display
               c.progress = data.progress || 0;
-              renderCard(idx);
             }
           } catch {
             clearInterval(iv);
+            clearInterval(anim);
             c.status = "error";
             c.error = t.errConnection;
             renderCard(idx);
