@@ -8,16 +8,29 @@ from flask import Flask, request, jsonify, send_file, render_template
 
 app = Flask(__name__)
 DOWNLOAD_DIR = os.path.join(os.path.dirname(__file__), "downloads")
+COOKIES_FILE = os.path.join(os.path.dirname(__file__), "cookies.txt")
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 jobs = {}
+
+
+def base_ytdlp_cmd():
+    """Return base yt-dlp command with cookie and client args if available."""
+    cmd = [
+        "yt-dlp",
+        "--no-playlist",
+        "--extractor-args", "youtube:player_client=tv_embedded,ios",
+    ]
+    if os.path.isfile(COOKIES_FILE):
+        cmd += ["--cookies", COOKIES_FILE]
+    return cmd
 
 
 def run_download(job_id, url, format_choice, format_id):
     job = jobs[job_id]
     out_template = os.path.join(DOWNLOAD_DIR, f"{job_id}.%(ext)s")
 
-    cmd = ["yt-dlp", "--no-playlist", "--extractor-args", "youtube:player_client=ios,web", "-o", out_template]
+    cmd = base_ytdlp_cmd() + ["-o", out_template]
 
     if format_choice == "audio":
         cmd += ["-x", "--audio-format", "mp3"]
@@ -85,7 +98,7 @@ def get_info():
     if not url:
         return jsonify({"error": "No URL provided"}), 400
 
-    cmd = ["yt-dlp", "--no-playlist", "--extractor-args", "youtube:player_client=ios,web", "-j", url]
+    cmd = base_ytdlp_cmd() + ["-j", url]
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
         if result.returncode != 0:
