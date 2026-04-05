@@ -52,11 +52,11 @@ def base_ytdlp_cmd(for_info=False):
     if os.path.isfile(COOKIES_FILE):
         cmd += ["--cookies", COOKIES_FILE]
         logger.debug("[cmd] cookies loaded")
-    # Info: ios returns full adaptive format list (no SABR restriction)
-    # Download: web client works better with JS challenge solving for playback
+    # Info: android client supports cookies + returns full adaptive format list (no SABR)
+    # Download: web client works better with JS challenge solving for actual playback
     if for_info:
-        cmd += ["--extractor-args", "youtube:player_client=ios"]
-        logger.debug("[info] Using ios client")
+        cmd += ["--extractor-args", "youtube:player_client=android"]
+        logger.debug("[info] Using android client")
     else:
         cmd += ["--extractor-args", "youtube:player_client=web"]
         logger.debug("[download] Using web client")
