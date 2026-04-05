@@ -83,7 +83,7 @@ def run_download(job_id, url, format_choice, format_id):
 
     try:
         proc = subprocess.Popen(
-            cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+            cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
             text=True, bufsize=1
         )
 
@@ -92,7 +92,7 @@ def run_download(job_id, url, format_choice, format_id):
         last_pct = 0.0
         stderr_lines = []
 
-        for line in proc.stderr:
+        for line in proc.stdout:
             line_s = line.rstrip()
             if line_s:
                 stderr_lines.append(line_s)
