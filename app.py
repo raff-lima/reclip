@@ -146,7 +146,7 @@ def get_info():
     if not url:
         return jsonify({"error": "No URL provided"}), 400
 
-    cmd = base_ytdlp_cmd() + ["-f", "b", "-j", url]
+    cmd = base_ytdlp_cmd() + ["-j", url]
     logger.info("[info] url=%s cmd=%s", url, " ".join(cmd))
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)

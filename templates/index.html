@@ -696,7 +696,7 @@
         }
 
         let qualityChips = "";
-        if (!isAudio && c.formats && c.formats.length > 1) {
+        if (!isAudio && c.formats && c.formats.length >= 1) {
           qualityChips = c.formats
             .map(
               (f) =>
@@ -704,7 +704,7 @@
             )
             .join("");
         }
-        if (isAudio && c.audioFormats && c.audioFormats.length > 1) {
+        if (isAudio && c.audioFormats && c.audioFormats.length >= 1) {
           qualityChips = c.audioFormats
             .map(
               (f) =>
