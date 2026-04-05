@@ -48,17 +48,18 @@ def base_ytdlp_cmd(for_info=False):
         "--no-check-certificates",
         "--js-runtimes", "node",
     ]
-    if not for_info and os.path.isfile(COOKIES_FILE):
-        # Download: web client with cookies + JS solving works for playback
+    # Always pass cookies when available (needed for bot detection bypass on VPS IPs)
+    if os.path.isfile(COOKIES_FILE):
         cmd += ["--cookies", COOKIES_FILE]
-        cmd += ["--extractor-args", "youtube:player_client=web"]
-        logger.debug("[download] Using cookies + web client")
-    else:
-        # Info: ios client returns full adaptive format list (no SABR restriction)
+        logger.debug("[cmd] cookies loaded")
+    # Info: ios returns full adaptive format list (no SABR restriction)
+    # Download: web client works better with JS challenge solving for playback
+    if for_info:
         cmd += ["--extractor-args", "youtube:player_client=ios"]
-        if os.path.isfile(COOKIES_FILE) and not for_info:
-            cmd += ["--cookies", COOKIES_FILE]
         logger.debug("[info] Using ios client")
+    else:
+        cmd += ["--extractor-args", "youtube:player_client=web"]
+        logger.debug("[download] Using web client")
     return cmd
 
 
