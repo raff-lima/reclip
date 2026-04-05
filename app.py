@@ -66,10 +66,16 @@ def run_download(job_id, url, format_choice, format_id):
     cmd = base_ytdlp_cmd() + ["-o", out_template]
 
     if format_choice == "audio":
-        cmd += ["-x", "--audio-format", "mp3"]
+        if format_id:
+            cmd += ["-f", f"ba[abr<={format_id}]/ba", "-x", "--audio-format", "mp3"]
+        else:
+            cmd += ["-x", "--audio-format", "mp3"]
     else:
-        # Prefer m4a (AAC) audio to avoid Opus/WebM incompatibility on Windows
-        cmd += ["-f", "bv*+ba[ext=m4a]/bv*+ba/b", "--merge-output-format", "mp4"]
+        if format_id:
+            fmt = f"bv*[height<={format_id}]+ba[ext=m4a]/bv*[height<={format_id}]+ba/b[height<={format_id}]"
+        else:
+            fmt = "bv*+ba[ext=m4a]/bv*+ba/b"
+        cmd += ["-f", fmt, "--merge-output-format", "mp4"]
 
     cmd.append(url)
     logger.info("[download] job=%s url=%s cmd=%s", job_id, url, " ".join(cmd))
@@ -151,11 +157,38 @@ def get_info():
 
         info = json.loads(result.stdout)
 
+        # Formatos de vídeo — melhor stream por resolução
+        best_by_height = {}
+        for f in info.get("formats", []):
+            height = f.get("height")
+            if height and f.get("vcodec", "none") != "none":
+                tbr = f.get("tbr") or 0
+                if height not in best_by_height or tbr > (best_by_height[height].get("tbr") or 0):
+                    best_by_height[height] = f
+        formats = sorted(
+            [{"id": str(h), "label": f"{h}p", "height": h} for h in best_by_height],
+            key=lambda x: x["height"], reverse=True
+        )
+
+        # Formatos de áudio — streams somente-áudio, usando tbr como fallback de abr
+        seen_abr = set()
+        audio_formats = []
+        for f in info.get("formats", []):
+            if f.get("vcodec", "none") != "none" or f.get("acodec", "none") == "none":
+                continue
+            br = round(f.get("abr") or f.get("tbr") or 0)
+            if br and br not in seen_abr:
+                seen_abr.add(br)
+                audio_formats.append({"id": str(br), "label": f"{br}kbps", "abr": br})
+        audio_formats.sort(key=lambda x: x["abr"], reverse=True)
+
         return jsonify({
             "title": info.get("title", ""),
             "thumbnail": info.get("thumbnail", ""),
             "duration": info.get("duration"),
             "uploader": info.get("uploader", ""),
+            "formats": formats,
+            "audio_formats": audio_formats,
         })
     except subprocess.TimeoutExpired:
         logger.error("[info] url=%s TIMEOUT", url)
