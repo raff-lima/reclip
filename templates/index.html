@@ -219,6 +219,21 @@
         object-fit: cover;
         display: block;
       }
+      /* Overlay icon on thumbnail */
+      .thumb-overlay {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 0, 0, 0.28);
+      }
+      .thumb-overlay svg {
+        width: 22px;
+        height: 22px;
+        color: #fff;
+        filter: drop-shadow(0 1px 3px rgba(0,0,0,0.5));
+      }
       /* No-thumbnail icon */
       .card-thumb .no-thumb {
         width: 100%;
@@ -777,11 +792,16 @@
         el.className = "card";
         const isAudio = currentFormat === "audio";
 
+        // Ícones de overlay
+        const iconPlay = `<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="6 3 20 12 6 21 6 3"/></svg>`;
+        const iconMusic = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`;
+        const overlayIcon = isAudio ? iconMusic : iconPlay;
+
         let thumbHtml;
-        if (isAudio) {
-          thumbHtml = `<div class="no-thumb" style="color:var(--accent)"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>`;
-        } else if (c.thumbnail) {
-          thumbHtml = `<img src="${c.thumbnail}" alt="">`;
+        if (c.thumbnail) {
+          thumbHtml = `<img src="${c.thumbnail}" alt=""><div class="thumb-overlay">${overlayIcon}</div>`;
+        } else if (isAudio) {
+          thumbHtml = `<div class="no-thumb" style="color:var(--accent)">${iconMusic}</div>`;
         } else {
           thumbHtml = `<div class="no-thumb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2"/><circle cx="8" cy="8" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></div>`;
         }
