@@ -340,25 +340,6 @@
         color: var(--error);
       }
 
-      .q-chip {
-        padding: 4px 10px;
-        border: 1.5px solid var(--card-border);
-        border-radius: 6px;
-        background: transparent;
-        color: var(--muted);
-        font-family: "DM Mono", monospace;
-        font-size: 0.65rem;
-        cursor: pointer;
-        transition: all 0.2s;
-      }
-      .q-chip.active {
-        border-color: var(--fg);
-        color: var(--fg);
-        background: rgba(26, 26, 24, 0.04);
-      }
-      .q-chip:hover:not(.active) {
-        border-color: var(--muted);
-      }
 
       /* Error card */
       .card.card-error {
@@ -617,10 +598,7 @@
                 thumbnail: data.thumbnail || "",
                 duration: data.duration,
                 uploader: data.uploader || "",
-                formats: data.formats || [],
-                audioFormats: data.audio_formats || [],
-                selectedFormatId: data.formats?.[0]?.id || null,
-                selectedAudioId: data.audio_formats?.[0]?.id || null,
+
               };
             }
           } catch (err) {
@@ -695,27 +673,9 @@
           thumbHtml = `<div class="no-thumb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2"/><circle cx="8" cy="8" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></div>`;
         }
 
-        let qualityChips = "";
-        if (!isAudio && c.formats && c.formats.length >= 1) {
-          qualityChips = c.formats
-            .map(
-              (f) =>
-                `<button class="q-chip${f.id === c.selectedFormatId ? " active" : ""}" onclick="pickFormat(${idx}, '${f.id}')">${f.label}</button>`,
-            )
-            .join("");
-        }
-        if (isAudio && c.audioFormats && c.audioFormats.length >= 1) {
-          qualityChips = c.audioFormats
-            .map(
-              (f) =>
-                `<button class="q-chip${f.id === c.selectedAudioId ? " active" : ""}" onclick="pickAudio(${idx}, '${f.id}')">${f.label}</button>`,
-            )
-            .join("");
-        }
-
         let actionHtml = "";
         if (c.status === "ready") {
-          actionHtml = `<button class="card-dl-btn" onclick="dlCard(${idx})">Download</button>${qualityChips}`;
+          actionHtml = `<button class="card-dl-btn" onclick="dlCard(${idx})">Download</button>`;
         } else if (c.status === "downloading") {
           actionHtml = `<span class="card-status downloading"><span class="spin"></span> Downloading...</span>`;
         } else if (c.status === "done") {
@@ -747,16 +707,6 @@
         document.getElementById("cards").appendChild(bar);
       }
 
-      function pickFormat(idx, formatId) {
-        cardData[idx].selectedFormatId = formatId;
-        renderCard(idx);
-      }
-
-      function pickAudio(idx, audioId) {
-        cardData[idx].selectedAudioId = audioId;
-        renderCard(idx);
-      }
-
       async function dlCard(idx) {
         const c = cardData[idx];
         c.status = "downloading";
@@ -770,10 +720,6 @@
             body: JSON.stringify({
               url: c.url,
               format: currentFormat,
-              format_id:
-                currentFormat === "audio"
-                  ? c.selectedAudioId
-                  : c.selectedFormatId,
               title: c.title || "",
             }),
           });

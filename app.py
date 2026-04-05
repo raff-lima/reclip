@@ -70,17 +70,7 @@ def run_download(job_id, url, format_choice, format_id):
     cmd = base_ytdlp_cmd() + ["-o", out_template]
 
     if format_choice == "audio":
-        if format_id:
-            # format_id is a bitrate string e.g. "128"
-            fmt = f"ba[abr<={format_id}]/ba/b"
-            cmd += ["-f", fmt, "-x", "--audio-format", "mp3"]
-        else:
-            cmd += ["-x", "--audio-format", "mp3"]
-    elif format_id:
-        # format_id is a height string e.g. "720".
-        # bv* matches both muxed and adaptive video streams (more permissive than bestvideo).
-        fmt = f"bv*[height<={format_id}]+ba/b[height<={format_id}]/bv*+ba/b"
-        cmd += ["-f", fmt, "--merge-output-format", "mp4"]
+        cmd += ["-x", "--audio-format", "mp3"]
     else:
         cmd += ["-f", "bv*+ba/b", "--merge-output-format", "mp4"]
 
@@ -164,28 +154,11 @@ def get_info():
 
         info = json.loads(result.stdout)
 
-        # Hardcoded quality options — yt-dlp format selector handles fallback
-        # (e.g. if 1080p unavailable, picks best available up to that limit)
-        formats = [
-            {"id": "1080", "label": "1080p", "height": 1080},
-            {"id": "720",  "label": "720p",  "height": 720},
-            {"id": "480",  "label": "480p",  "height": 480},
-            {"id": "360",  "label": "360p",  "height": 360},
-        ]
-
-        audio_formats = [
-            {"id": "320", "label": "320kbps", "abr": 320},
-            {"id": "192", "label": "192kbps", "abr": 192},
-            {"id": "128", "label": "128kbps", "abr": 128},
-        ]
-
         return jsonify({
             "title": info.get("title", ""),
             "thumbnail": info.get("thumbnail", ""),
             "duration": info.get("duration"),
             "uploader": info.get("uploader", ""),
-            "formats": formats,
-            "audio_formats": audio_formats,
         })
     except subprocess.TimeoutExpired:
         logger.error("[info] url=%s TIMEOUT", url)
