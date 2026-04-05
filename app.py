@@ -19,7 +19,7 @@ def base_ytdlp_cmd():
     cmd = [
         "yt-dlp",
         "--no-playlist",
-        "--extractor-args", "youtube:player_client=tv_embedded,ios",
+        "--extractor-args", "youtube:player_client=ios,android",
     ]
     if os.path.isfile(COOKIES_FILE):
         cmd += ["--cookies", COOKIES_FILE]
