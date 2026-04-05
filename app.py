@@ -35,9 +35,9 @@ def run_download(job_id, url, format_choice, format_id):
     if format_choice == "audio":
         cmd += ["-x", "--audio-format", "mp3"]
     elif format_id:
-        # format_id may be a muxed stream (tv_embedded) or a separate video stream.
-        # Try merge first, fall back to the bare format id, then best overall.
-        fmt = f"{format_id}+bestaudio/{format_id}/bestvideo+bestaudio/best"
+        # format_id is a height value (e.g. "720") — use height-based selection
+        # so yt-dlp resolves the best available stream at that resolution itself.
+        fmt = f"bestvideo[height<={format_id}]+bestaudio/best[height<={format_id}]/bestvideo+bestaudio/best"
         cmd += ["-f", fmt, "--merge-output-format", "mp4"]
     else:
         cmd += ["-f", "bestvideo+bestaudio/best", "--merge-output-format", "mp4"]
@@ -121,7 +121,7 @@ def get_info():
         formats = []
         for height, f in best_by_height.items():
             formats.append({
-                "id": f["format_id"],
+                "id": str(height),
                 "label": f"{height}p",
                 "height": height,
             })
