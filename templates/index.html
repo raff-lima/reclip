@@ -569,19 +569,15 @@
       }
 
       function friendlyError(err) {
-        if (err.includes("Unsupported URL")) return "This URL is not supported";
-        if (err.includes("Video unavailable"))
-          return "Video is unavailable or private";
-        if (err.includes("Private video")) return "This video is private";
-        if (err.includes("HTTP Error 403"))
-          return "Access denied by the platform";
-        if (err.includes("HTTP Error 404")) return "Video not found";
-        if (err.includes("copyright")) return "Video blocked due to copyright";
-        if (err.includes("geo")) return "Video not available in your region";
-        if (err.includes("timed out") || err.includes("Timed out"))
-          return "Request timed out — try again";
-        if (err.includes("network") || err.includes("Network"))
-          return "Network error — check your connection";
+        if (err.includes("Unsupported URL")) return t.errUnsupported;
+        if (err.includes("Video unavailable")) return t.errUnavailable;
+        if (err.includes("Private video")) return t.errPrivate;
+        if (err.includes("HTTP Error 403")) return t.errForbidden;
+        if (err.includes("HTTP Error 404")) return t.errNotFound;
+        if (err.includes("copyright")) return t.errCopyright;
+        if (err.includes("geo")) return t.errGeo;
+        if (err.includes("timed out") || err.includes("Timed out")) return t.errTimeout;
+        if (err.includes("network") || err.includes("Network")) return t.errNetwork;
         return err.length > 80 ? err.slice(0, 80) + "..." : err;
       }
 
@@ -592,6 +588,84 @@
         }
       });
 
+      // ── i18n ──────────────────────────────────────────────────────────────
+      const TRANSLATIONS = {
+        en: {
+          subtitle: "Free media downloader",
+          placeholder: "Paste one or more URLs...",
+          hint: "Multiple links? Separate with spaces, commas, or newlines.",
+          fetch: "Fetch",
+          loading: "Loading...",
+          download: "Download",
+          downloading: "Downloading...",
+          save: "Save",
+          retry: "Retry",
+          downloadAll: "Download All",
+          downloadingAll: "Downloading...",
+          couldNotFetch: "Could not fetch video",
+          untitled: "Untitled",
+          errUnsupported: "This URL is not supported",
+          errUnavailable: "Video is unavailable or private",
+          errPrivate: "This video is private",
+          errForbidden: "Access denied by the platform",
+          errNotFound: "Video not found",
+          errCopyright: "Video blocked due to copyright",
+          errGeo: "Video not available in your region",
+          errTimeout: "Request timed out — try again",
+          errNetwork: "Network error — check your connection",
+          errConnection: "Lost connection to server",
+        },
+        "pt-BR": {
+          subtitle: "Baixador de mídia gratuito",
+          placeholder: "Cole um ou mais links...",
+          hint: "Vários links? Separe com espaços, vírgulas ou quebras de linha.",
+          fetch: "Buscar",
+          loading: "Carregando...",
+          download: "Baixar",
+          downloading: "Baixando...",
+          save: "Salvar",
+          retry: "Tentar novamente",
+          downloadAll: "Baixar Todos",
+          downloadingAll: "Baixando...",
+          couldNotFetch: "Não foi possível buscar o vídeo",
+          untitled: "Sem título",
+          errUnsupported: "Esta URL não é suportada",
+          errUnavailable: "Vídeo indisponível ou privado",
+          errPrivate: "Este vídeo é privado",
+          errForbidden: "Acesso negado pela plataforma",
+          errNotFound: "Vídeo não encontrado",
+          errCopyright: "Vídeo bloqueado por direitos autorais",
+          errGeo: "Vídeo não disponível na sua região",
+          errTimeout: "Tempo esgotado — tente novamente",
+          errNetwork: "Erro de rede — verifique sua conexão",
+          errConnection: "Conexão perdida com o servidor",
+        },
+      };
+
+      function detectLang() {
+        const langs = navigator.languages || [navigator.language];
+        for (const l of langs) {
+          if (TRANSLATIONS[l]) return l;
+          const base = l.split("-")[0];
+          const match = Object.keys(TRANSLATIONS).find(
+            (k) => k.split("-")[0] === base,
+          );
+          if (match) return match;
+        }
+        return "en";
+      }
+
+      const lang = detectLang();
+      const t = TRANSLATIONS[lang];
+
+      // Apply static translations
+      document.documentElement.lang = lang;
+      document.querySelector(".brand p").textContent = t.subtitle;
+      document.getElementById("urls").placeholder = t.placeholder;
+      document.querySelector(".hint").textContent = t.hint;
+      document.getElementById("goBtn").textContent = t.fetch;
+      // ─────────────────────────────────────────────────────────────────────
+
       async function go() {
         const urls = parseUrls(document.getElementById("urls").value);
         if (!urls.length) return;
@@ -599,7 +673,7 @@
         const btn = document.getElementById("goBtn");
         const container = document.getElementById("cards");
         btn.disabled = true;
-        btn.textContent = "Loading...";
+        btn.textContent = t.loading;
         container.innerHTML = "";
         cardData = [];
 
@@ -655,7 +729,7 @@
         }
 
         btn.disabled = false;
-        btn.textContent = "Fetch";
+        btn.textContent = t.fetch;
       }
 
       function renderCard(idx) {
@@ -691,7 +765,7 @@
             </div>
           </div>
           <div class="card-body">
-            <div class="card-title" style="color:var(--error)">Could not fetch video</div>
+            <div class="card-title" style="color:var(--error)">${t.couldNotFetch}</div>
             <div class="card-error-msg">${esc(friendlyError(c.error || ""))}</div>
             <div class="card-error-url">${esc(c.url)}</div>
           </div>
@@ -732,22 +806,24 @@
 
         let actionHtml = "";
         if (c.status === "ready") {
-          const chipsHtml = qualityChips ? `<div class="card-chips">${qualityChips}</div>` : "";
-          actionHtml = `<button class="card-dl-btn" onclick="dlCard(${idx})">Download</button>${chipsHtml}`;
+          const chipsHtml = qualityChips
+            ? `<div class="card-chips">${qualityChips}</div>`
+            : "";
+          actionHtml = `<button class="card-dl-btn" onclick="dlCard(${idx})">${t.download}</button>${chipsHtml}`;
         } else if (c.status === "downloading") {
-          actionHtml = `<span class="card-status downloading"><span class="spin"></span> Downloading...</span>`;
+          actionHtml = `<span class="card-status downloading"><span class="spin"></span> ${t.downloading}</span>`;
         } else if (c.status === "done") {
-          actionHtml = `<button class="card-dl-btn done" onclick="saveCard(${idx})">Save</button>
+          actionHtml = `<button class="card-dl-btn done" onclick="saveCard(${idx})">${t.save}</button>
           <span class="card-status done">${esc(c.filename || "")}</span>`;
         } else if (c.status === "error") {
-          actionHtml = `<button class="card-dl-btn" onclick="dlCard(${idx})">Retry</button>
-          <span class="card-status error">${esc(friendlyError(c.error || "Download failed"))}</span>`;
+          actionHtml = `<button class="card-dl-btn" onclick="dlCard(${idx})">${t.retry}</button>
+          <span class="card-status error">${esc(friendlyError(c.error || t.downloading))}</span>`;
         }
 
         el.innerHTML = `
         <div class="card-thumb">${thumbHtml}</div>
         <div class="card-body">
-          <div class="card-title">${esc(c.title || "Untitled")}</div>
+          <div class="card-title">${esc(c.title || t.untitled)}</div>
           <div class="card-meta">${esc(c.uploader)}${c.duration ? " · " + fmtDur(c.duration) : ""}</div>
           <div class="card-actions">${actionHtml}</div>
         </div>
@@ -761,7 +837,7 @@
         const bar = document.createElement("div");
         bar.id = "dl-all-bar";
         bar.className = "dl-all-bar";
-        bar.innerHTML = `<button class="dl-all-btn" onclick="dlAll()">Download All</button>`;
+        bar.innerHTML = `<button class="dl-all-btn" onclick="dlAll()">${t.downloadAll}</button>`;
         document.getElementById("cards").appendChild(bar);
       }
 
@@ -832,7 +908,7 @@
           } catch {
             clearInterval(iv);
             c.status = "error";
-            c.error = "Lost connection to server";
+            c.error = t.errConnection;
             renderCard(idx);
           }
         }, 1000);
@@ -851,7 +927,7 @@
         const btn = document.querySelector(".dl-all-btn");
         if (btn) {
           btn.disabled = true;
-          btn.textContent = "Downloading...";
+          btn.textContent = t.downloadingAll;
         }
 
         for (let i = 0; i < cardData.length; i++) {
@@ -862,7 +938,7 @@
 
         if (btn) {
           btn.disabled = false;
-          btn.textContent = "Download All";
+          btn.textContent = t.downloadAll;
         }
       }
     </script>
