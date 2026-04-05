@@ -68,7 +68,8 @@ def run_download(job_id, url, format_choice, format_id):
     if format_choice == "audio":
         cmd += ["-x", "--audio-format", "mp3"]
     else:
-        cmd += ["-f", "bv*+ba/b", "--merge-output-format", "mp4"]
+        # Prefer m4a (AAC) audio to avoid Opus/WebM incompatibility on Windows
+        cmd += ["-f", "bv*+ba[ext=m4a]/bv*+ba/b", "--merge-output-format", "mp4"]
 
     cmd.append(url)
     logger.info("[download] job=%s url=%s cmd=%s", job_id, url, " ".join(cmd))
