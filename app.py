@@ -92,7 +92,10 @@ def run_download(job_id, url, format_choice, format_id):
         last_pct = 0.0
         stderr_lines = []
 
-        for line in proc.stdout:
+        while True:
+            line = proc.stdout.readline()
+            if not line:
+                break
             line_s = line.rstrip()
             if line_s:
                 stderr_lines.append(line_s)
