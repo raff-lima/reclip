@@ -46,6 +46,7 @@ def base_ytdlp_cmd():
         "yt-dlp",
         "--no-playlist",
         "--no-check-certificates",
+        "--js-runtimes", "node",
     ]
     if os.path.isfile(COOKIES_FILE):
         cmd += ["--cookies", COOKIES_FILE]
