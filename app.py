@@ -35,7 +35,10 @@ def run_download(job_id, url, format_choice, format_id):
     if format_choice == "audio":
         cmd += ["-x", "--audio-format", "mp3"]
     elif format_id:
-        cmd += ["-f", f"{format_id}+bestaudio/best", "--merge-output-format", "mp4"]
+        # format_id may be a muxed stream (tv_embedded) or a separate video stream.
+        # Try merge first, fall back to the bare format id, then best overall.
+        fmt = f"{format_id}+bestaudio/{format_id}/bestvideo+bestaudio/best"
+        cmd += ["-f", fmt, "--merge-output-format", "mp4"]
     else:
         cmd += ["-f", "bestvideo+bestaudio/best", "--merge-output-format", "mp4"]
 
