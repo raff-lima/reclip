@@ -620,8 +620,10 @@
                 formats: data.formats || [],
                 audioFormats: data.audio_formats || [],
                 // padrão: 360p para vídeo, maior bitrate para áudio
-                selectedFormatId: (data.formats || []).find(f => f.id === "360")?.id
-                  || data.formats?.[data.formats.length - 1]?.id || null,
+                selectedFormatId:
+                  (data.formats || []).find((f) => f.id === "360")?.id ||
+                  data.formats?.[data.formats.length - 1]?.id ||
+                  null,
                 selectedAudioId: data.audio_formats?.[0]?.id || null,
               };
             }
@@ -699,14 +701,20 @@
 
         let qualityChips = "";
         if (!isAudio && c.formats && c.formats.length >= 1) {
-          qualityChips = c.formats.map(f =>
-            `<button class="q-chip${f.id === c.selectedFormatId ? " active" : ""}" onclick="pickFormat(${idx}, '${f.id}')">${f.label}</button>`
-          ).join("");
+          qualityChips = c.formats
+            .map(
+              (f) =>
+                `<button class="q-chip${f.id === c.selectedFormatId ? " active" : ""}" onclick="pickFormat(${idx}, '${f.id}')">${f.label}</button>`,
+            )
+            .join("");
         }
         if (isAudio && c.audioFormats && c.audioFormats.length >= 1) {
-          qualityChips = c.audioFormats.map(f =>
-            `<button class="q-chip${f.id === c.selectedAudioId ? " active" : ""}" onclick="pickAudio(${idx}, '${f.id}')">${f.label}</button>`
-          ).join("");
+          qualityChips = c.audioFormats
+            .map(
+              (f) =>
+                `<button class="q-chip${f.id === c.selectedAudioId ? " active" : ""}" onclick="pickAudio(${idx}, '${f.id}')">${f.label}</button>`,
+            )
+            .join("");
         }
 
         let actionHtml = "";
@@ -766,7 +774,10 @@
             body: JSON.stringify({
               url: c.url,
               format: currentFormat,
-              format_id: currentFormat === "audio" ? c.selectedAudioId : c.selectedFormatId,
+              format_id:
+                currentFormat === "audio"
+                  ? c.selectedAudioId
+                  : c.selectedFormatId,
               title: c.title || "",
             }),
           });
