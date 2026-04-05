@@ -52,14 +52,10 @@ def base_ytdlp_cmd(for_info=False):
     if os.path.isfile(COOKIES_FILE):
         cmd += ["--cookies", COOKIES_FILE]
         logger.debug("[cmd] cookies loaded")
-    # Info: mweb (mobile web) supports cookies + returns full adaptive format list
-    # Download: web client works better with JS challenge solving for actual playback
-    if for_info:
-        cmd += ["--extractor-args", "youtube:player_client=mweb"]
-        logger.debug("[info] Using mweb client")
-    else:
-        cmd += ["--extractor-args", "youtube:player_client=web"]
-        logger.debug("[download] Using web client")
+    # tv_embedded: suporta cookies + retorna formatos DASH completos (sem SABR)
+    # Aceita cookies e é projetado para players de alta qualidade (TV embed)
+    cmd += ["--extractor-args", "youtube:player_client=tv_embedded"]
+    logger.debug("[cmd] Using tv_embedded client")
     return cmd
 
 
