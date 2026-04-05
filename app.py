@@ -15,11 +15,11 @@ jobs = {}
 
 
 def base_ytdlp_cmd():
-    """Return base yt-dlp command with cookie and client args if available."""
     cmd = [
         "yt-dlp",
         "--no-playlist",
-        "--extractor-args", "youtube:player_client=ios,android",
+        "--extractor-args", "youtube:player_client=ios",
+        "--no-check-certificates",
     ]
     if os.path.isfile(COOKIES_FILE):
         cmd += ["--cookies", COOKIES_FILE]
@@ -35,12 +35,12 @@ def run_download(job_id, url, format_choice, format_id):
     if format_choice == "audio":
         cmd += ["-x", "--audio-format", "mp3"]
     elif format_id:
-        # format_id is a height value (e.g. "720") — use height-based selection
-        # so yt-dlp resolves the best available stream at that resolution itself.
-        fmt = f"bestvideo[height<={format_id}]+bestaudio/best[height<={format_id}]/bestvideo+bestaudio/best"
+        # format_id is a height string e.g. "720".
+        # bv* matches both muxed and adaptive video streams (more permissive than bestvideo).
+        fmt = f"bv*[height<={format_id}]+ba/b[height<={format_id}]/bv*+ba/b"
         cmd += ["-f", fmt, "--merge-output-format", "mp4"]
     else:
-        cmd += ["-f", "bestvideo+bestaudio/best", "--merge-output-format", "mp4"]
+        cmd += ["-f", "bv*+ba/b", "--merge-output-format", "mp4"]
 
     cmd.append(url)
 
@@ -48,7 +48,10 @@ def run_download(job_id, url, format_choice, format_id):
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
         if result.returncode != 0:
             job["status"] = "error"
-            job["error"] = result.stderr.strip().split("\n")[-1]
+            stderr = result.stderr.strip()
+            # Return the last meaningful ERROR line
+            error_lines = [l for l in stderr.splitlines() if "ERROR" in l]
+            job["error"] = error_lines[-1] if error_lines else (stderr.splitlines()[-1] if stderr else "Unknown error")
             return
 
         files = glob.glob(os.path.join(DOWNLOAD_DIR, f"{job_id}.*"))
@@ -105,7 +108,10 @@ def get_info():
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
         if result.returncode != 0:
-            return jsonify({"error": result.stderr.strip().split("\n")[-1]}), 400
+            stderr = result.stderr.strip()
+            error_lines = [l for l in stderr.splitlines() if "ERROR" in l]
+            error_msg = error_lines[-1] if error_lines else (stderr.splitlines()[-1] if stderr else "Unknown error")
+            return jsonify({"error": error_msg}), 400
 
         info = json.loads(result.stdout)
 
