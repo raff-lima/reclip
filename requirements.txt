@@ -1,2 +1,2 @@
 flask
-yt-dlp[default]>=2026.3.17
+yt-dlp[default]>=2026.10.26

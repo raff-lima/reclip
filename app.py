@@ -53,10 +53,13 @@ def base_ytdlp_cmd(for_info=False):
     if os.path.isfile(COOKIES_FILE):
         cmd += ["--cookies", COOKIES_FILE]
         logger.debug("[cmd] cookies loaded")
-    # tv_embedded: suporta cookies + retorna formatos DASH completos (sem SABR)
-    # Aceita cookies e é projetado para players de alta qualidade (TV embed)
-    cmd += ["--extractor-args", "youtube:player_client=tv_embedded"]
-    logger.debug("[cmd] Using tv_embedded client")
+    # tv_embedded is no longer supported by yt-dlp (it was skipped and silently
+    # replaced by a "tv downgraded" client that gets 403 on the media URLs).
+    # Use yt-dlp's default clients, or override with YTDLP_PLAYER_CLIENT (e.g. "web,mweb").
+    client = os.environ.get("YTDLP_PLAYER_CLIENT")
+    if client:
+        cmd += ["--extractor-args", f"youtube:player_client={client}"]
+        logger.debug("[cmd] Using player_client=%s", client)
     return cmd
 
 
